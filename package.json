@@ -1,0 +1,16 @@
+{
+  "name": "comment-builder",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Comment Builder monday app on monday code: serves the Comment Builder page and its AI endpoints.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "@mondaycom/apps-sdk": "latest"
+  }
+}
