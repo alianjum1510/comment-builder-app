@@ -1,4 +1,4 @@
-"""Build the Comment Builder page into comment-builder-server-app/public/ (served by server.js on monday code).
+for """Build the Comment Builder page into comment-builder-server-app/public/ (served by server.py on monday code).
 
 Usage (from the project root):  python3 -I comment-builder-server-app/build_client.py
 Uses the same sources as the zip build (v4/comment-logic.js, v4/updates-feed.js, v4/ui.js, v4/updates.css)

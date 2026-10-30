@@ -2147,6 +2147,7 @@ function Pn() {
     [lastId, setLastId] = H(null), // just-logged comment (highlighted in the history panel)
     [aiBusy, setAiBusy] = H(!1),
     [aiNote, setAiNote] = H(``),
+    [aiFilled, setAiFilled] = H({}), // values the last Autofill put in (see autofill)
     v = k => val => a(prev => ({ ...prev, [k]: val }));
   U(() => {
     Cn.listen(`context`, c => t(c.data));
@@ -2192,7 +2193,14 @@ function Pn() {
       if (fields === null) setAiNote(`Autofill is coming soon. It will fill Classification, Next step and Due date from your comment.`);
       else if (!Object.keys(fields).length) setAiNote(`Autofill couldn't tell the classification from this comment. Add a bit more detail and try again.`);
       else {
-        a(prev => ({ ...prev, ...fields }));
+        // A field the previous Autofill filled and nobody changed since is cleared when this Autofill doesn't fill it
+        // again (otherwise e.g. the last comment's due date stays). Anything typed or picked by hand is kept.
+        a(prev => {
+          let next = { ...prev };
+          for (let k of Object.keys(aiFilled)) if (!(k in fields) && prev[k] === aiFilled[k]) next[k] = ``;
+          return { ...next, ...fields };
+        });
+        setAiFilled(fields);
         let labels = { escalation: `Escalation`, categories: `Catagories`, mainCategory: `Main`, subCategory: `Sub`, nextStep: `Next step`, dueDate: `Due date`, transcript: `Transcript` };
         let missing = [`mainCategory`, `subCategory`, `categories`, `escalation`].filter(k => !fields[k]).map(k => labels[k]);
         setAiNote(`Filled by Autofill: ${Object.keys(fields).map(k => labels[k] || k).join(`, `)}.${missing.length ? ` Not filled: ${missing.join(`, `)}.` : ``} Please check before saving.`);

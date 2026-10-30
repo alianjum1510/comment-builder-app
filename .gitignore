@@ -1,0 +1,3 @@
+# Secrets: keep the real keys in monday code Secrets, never in git.
+.env
+__pycache__/
