@@ -4,8 +4,9 @@ This folder is the whole Comment Builder app as a monday code server:
 
 - `server.py`: serves the Comment Builder page and the AI endpoints (`/api/ai/write`, `/api/ai/summarize`, `/api/ai/autofill`). Python 3.9+, standard library only.
 - `public/`: the page. Rebuild it after any change in `v4/` with `python3 -I comment-builder-server-app/build_client.py`.
-  **Before the next rebuild**, apply `v4-ui-autofill-fix.diff` to `v4/ui.js` by hand. The Autofill fix (clear the previous
-  Autofill's leftovers) was made directly in `public/`, and a rebuild from an unchanged `v4/` would undo it.
+  **Before the next rebuild**, apply `v4-fixes.diff` to `v4/` by hand: the photo-field and double-mention fixes go into
+  `v4/updates-feed.js`, the Autofill fix (clear the previous Autofill's leftovers) into `v4/ui.js`. Both were made
+  directly in `public/`, and a rebuild from an unchanged `v4/` would undo them.
 - `Procfile`: tells monday code how to start the server (`python3 server.py`).
 - `requirements.txt`: marks this as a Python app for monday code. It's empty because the server needs no packages.
 

@@ -442,9 +442,49 @@ var DCL_EMOJIS = `👍 👏 🙌 🎉 ✅ ❌ 🔥 💡 🚀 ⭐ ❤️ 😊 �
 
 /* ---------- API ---------- */
 
+// monday's API is replacing the flat user photo fields (photo_thumb_small…) with `photo_url { thumb_small … }`.
+// Queries ask for `photo_thumb_small`; it is sent as the new `photo_url { thumb_small }` first, then as the old flat
+// fields, and finally without a photo, always under the key `photo_thumb_small` (a URL string), so the rest of the
+// page doesn't change. The first shape monday accepts is remembered for the rest of the session.
+var DCL_PHOTO_FIELDS = [`photo_url`, `photo_thumb_small`, `photo_thumb`, `photo_tiny`, `photo_small`, ``];
+var dclPhotoAt = 0;
+
+function dclPhotoQuery(query, field) {
+  if (field === `photo_thumb_small`) return query;
+  let as = field === `photo_url` ? `photo_thumb_small: photo_url { thumb_small }` : field ? `photo_thumb_small: ${field}` : ``;
+  return query.replace(/photo_thumb_small/g, as);
+}
+
+// `photo_thumb_small: { thumb_small: url }` (new nested shape) → `photo_thumb_small: url`, anywhere in the response.
+function dclFlattenPhotos(x) {
+  if (Array.isArray(x)) x.forEach(dclFlattenPhotos);
+  else if (x && typeof x === `object`) {
+    for (let k of Object.keys(x)) {
+      if (k === `photo_thumb_small` && x[k] && typeof x[k] === `object`) x[k] = x[k].thumb_small || null;
+      else dclFlattenPhotos(x[k]);
+    }
+  }
+  return x;
+}
+
+async function dclApi(query, variables) {
+  if (!query.includes(`photo_thumb_small`)) return dclApiOnce(query, variables);
+  for (;;) {
+    let field = DCL_PHOTO_FIELDS[dclPhotoAt];
+    try {
+      return dclFlattenPhotos(await dclApiOnce(dclPhotoQuery(query, field), variables));
+    } catch (err) {
+      let bad = /Cannot query field \\?"(\w+)\\?" on type/.exec(err?.message || ``);
+      let at = !bad ? -1 : field === `photo_url` && bad[1] === `thumb_small` ? 0 : DCL_PHOTO_FIELDS.indexOf(bad[1]);
+      if (at < 0) throw err;
+      dclPhotoAt = Math.max(dclPhotoAt, at + 1); // another request may already have moved on
+    }
+  }
+}
+
 // Like wn(), but the error message includes monday's details (error code, missing scope, bad field…).
 // The SDK rejects with Error(errorMessage) and hides monday's response in `err.data`, so that is surfaced too.
-async function dclApi(query, variables) {
+async function dclApiOnce(query, variables) {
   let detail = x => (x ? ` ${JSON.stringify(x).slice(0, 600)}` : ``);
   let r;
   try {
@@ -643,10 +683,14 @@ async function dclPostUpdate(itemId, html, parentId, mentionIds) {
   let args = `item_id: $itemId, body: $body${parentId ? `, parent_id: $parentId` : ``}`;
   if (mentionIds?.length) {
     try {
-      return (await dclApi(
+      let created = (await dclApi(
         `mutation (${sig}, $mentions: [UpdateMention]) { create_update (${args}, mentions_list: $mentions) { id } }`,
         { ...vars, mentions: mentionIds.map(m => ({ id: String(m.id ?? m), type: m.type || `User` })) },
       )).create_update;
+      // mentions_list notifies the people but monday also appends its own copy of each mention to the text, so the
+      // mention would show twice. Put back the text exactly as written (best effort: the update is already posted).
+      if (created?.id) await dclTry(() => dclEditUpdate(created.id, html));
+      return created;
     } catch (err) {
       // Only retry without mentions_list when monday rejected the query shape (nothing was created).
       if (!/validation|argument|unknown|type|field/i.test(err.message)) throw err;
